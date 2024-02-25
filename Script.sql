@@ -88,4 +88,19 @@ from "transaction" t;
 
 --Вывести имена, фамилии и профессии клиентов, между транзакциями которых 
 --был максимальный интервал (интервал вычисляется в днях)
-
+with cur_prev_date as (
+    select customer_id, to_date(t.transaction_date, 'DD.MM.YYYY') as cur_t_date,
+           lag(to_date(t.transaction_date, 'DD.MM.YYYY')) over(partition by customer_id
+                       order by to_date(transaction_date, 'DD.MM.YYYY')) as prev_t_date
+    from "transaction" t
+),
+customer_interval as (
+    select customer_id, 
+           max(cur_t_date::date - prev_t_date::date) as max_interval
+    from cur_prev_date
+    group by customer_id
+)
+select c.first_name, c.last_name, c.job_title
+from customer_interval ci inner join customer c
+     on ci.customer_id = c.customer_id
+where ci.max_interval = (select max(max_interval) from customer_interval)
